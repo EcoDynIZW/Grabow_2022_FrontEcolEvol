@@ -1,0 +1,6 @@
+"0","## You can ignore this chunk in most cases"
+"0","## If you want to modify chunk options, you can do it here for all chunks or"
+"0","## add the options in the repsective chunk header, e.g. `{r, message = FALSE}`"
+"0","knitr::opts_chunk$set(echo = TRUE, warning = TRUE, message = TRUE,"
+"0","                      fig.width = 9, fig.height = 6, dpi = 500, "
+"0","                      retina = 1)"

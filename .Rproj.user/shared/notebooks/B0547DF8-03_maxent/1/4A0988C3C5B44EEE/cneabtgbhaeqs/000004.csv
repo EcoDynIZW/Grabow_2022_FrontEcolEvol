@@ -1,0 +1,6 @@
+"0","#move observation points to the closest tree in 200 meters
+nn_squirrel_tree<-nngeo::st_nn(sightings,trees,k=1,maxdist=200,
+                        progress = TRUE,sparse = TRUE)
+"
+"2","projected points
+"

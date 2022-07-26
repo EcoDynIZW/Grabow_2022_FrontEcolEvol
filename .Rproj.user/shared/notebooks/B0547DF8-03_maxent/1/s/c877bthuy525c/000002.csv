@@ -1,0 +1,103 @@
+"0","package.list=c(""unmarked"","
+"0","               ""here"","
+"0","               ""raster"","
+"0","               ""sf"","
+"0","               ""magrittr"","
+"0","               ""plyr"","
+"0","               ""conflicted"","
+"0","               ""rgdal"","
+"0","               ""dismo"","
+"0","               ""rasterVis"","
+"0","               ""ggplot2"","
+"0","               ""tmap"","
+"0","               ""grainscape"","
+"0","               ""nngeo"","
+"0","               ""d6berlin"")"
+"0",""
+"0","for (package in package.list) {"
+"0","  if (!require(package, character.only=T, quietly=T)) {"
+"0","  }"
+"0","}"
+"2","here() starts at C:/Users/mariu/PopDynIZW Dropbox/Projects/sciurus_vulgaris_b_2021_sdm_grabow/GitHub-repository/Grabow_2022_FrontEcolEvol
+"
+"2","
+Attaching package: ‘sp’
+
+"
+"2","The following object is masked from ‘package:unmarked’:
+
+    coordinates
+
+"
+"2","
+Attaching package: ‘raster’
+
+"
+"2","The following objects are masked from ‘package:unmarked’:
+
+    getData, projection
+
+"
+"2","Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
+"
+"2","
+Attaching package: ‘magrittr’
+
+"
+"2","The following object is masked from ‘package:raster’:
+
+    extract
+
+"
+"2","
+Attaching package: ‘plyr’
+
+"
+"2","The following object is masked from ‘package:here’:
+
+    here
+
+"
+"2","Please note that rgdal will be retired by the end of 2023,
+plan transition to sf/stars/terra functions using GDAL and PROJ
+at your earliest convenience.
+
+rgdal: version: 1.5-32, (SVN revision 1176)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.4.1, released 2021/12/27
+Path to GDAL shared files: C:/Users/mariu/Documents/R/win-library/4.1/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: C:/Users/mariu/Documents/R/win-library/4.1/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.5-0
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options(""rgdal_show_exportToProj4_warnings""=""none"") before loading sp or rgdal.
+"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"2","Registered S3 methods overwritten by 'stars':
+  method             from
+  st_bbox.SpatRaster sf  
+  st_crs.SpatRaster  sf  
+"
+"0","conflict_prefer(""here"", ""here"")"
+"2","[conflicted] Will prefer [34mhere::here[39m over any other package
+"
+"0","conflict_prefer(""levelplot"", ""rasterVis"")"
+"2","[conflicted] Will prefer [34mrasterVis::levelplot[39m over any other package
+"
+"0","conflict_prefer(""coordinates"", ""sp"")"
+"2","[conflicted] Will prefer [34msp::coordinates[39m over any other package
+"
+"0","conflict_prefer(""extract"", ""raster"")"
+"2","[conflicted] Will prefer [34mraster::extract[39m over any other package
+"
+"0","conflict_prefer(""threshold"", ""dismo"")"
+"2","[conflicted] Will prefer [34mdismo::threshold[39m over any other package
+"
+"0","conflict_prefer(""union"", ""rgeos"")"
+"2","[conflicted] Will prefer [34mrgeos::union[39m over any other package
+"

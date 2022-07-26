@@ -1,0 +1,337 @@
+---
+title: "Your Project: Data Preparation" ## name of your project
+author: "Your Name"                     ## your name(s)
+date: "`r Sys.Date()`"                  ## current date
+output: "word_document"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## You can ignore this chunk in most cases
+## If you want to modify chunk options, you can do it here for all chunks or
+## add the options in the repsective chunk header, e.g. `{r, message = FALSE}`
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = TRUE,
+                      fig.width = 9, fig.height = 6, dpi = 500, 
+                      retina = 1)
+```
+
+* **Research question:**
+* **Study area:**
+* **Data:** 
+
+
+# Setup
+
+```{r packages, include=FALSE}
+package.list=c("raster",
+               "tmap",
+               "here",
+              "magrittr",
+              "sf",
+              "dismo",
+              "ggplot2",
+              "RColorBrewer")
+
+
+#function that installs and loads the packages 
+
+for (package in package.list) {
+  if (!require(package, character.only=T, quietly=T)) {
+    install.packages(package)
+    library(package, character.only=T)
+  }
+}
+```
+
+# Load processed .tif files of habitat suitability
+
+```{r data, message=FALSE, warning=FALSE}
+comb_ppm<-raster(here("output","geo-proc","habitat_comd_ad_ppm.tif"))
+maxent<-raster(here("output","geo-proc","habitat_maxent1.tif"))%>%resample(comb_ppm)
+maxent2<-raster(here("output","geo-proc","habitat_maxent2.tif"))%>%resample(comb_ppm)
+occupancy<-raster(here("output","geo-proc","psi.tif"))%>%resample(comb_ppm)
+comb_aim<-raster(here("output","geo-proc","habitat_comd_aim.tif"))
+
+
+water<-comb_ppm<0.01
+values(water)[values(water) == 0] = NA
+
+maxent<-mask(maxent,water,inverse=TRUE,updatevalue=0)
+maxent2<-mask(maxent2,water,inverse=TRUE,updatevalue=0)
+occupancy<-mask(occupancy,water,inverse=TRUE,updatevalue=0)
+
+
+models<-stack(comb_ppm,occupancy,maxent,maxent2)
+
+cor<-layerStats(models,'pearson',na.rm = T)
+cor
+```
+#final model plots
+```{r}
+tmap_mode("plot")
+
+m1<-tm_shape(comb_ppm) +
+  tm_raster(palette = "viridis", 
+            title = "suitability")+
+   tm_layout(main.title = "IPPPM (M4) prediction squirrels",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.1,0.1,0.1,0.1),
+          legend.frame = TRUE)+
+  tm_scale_bar(position=c("left", "bottom"), 
+               text.size = 1.5)+
+  tm_credits("A", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)
+
+m1
+
+tmap_save(m1,here("plots",
+                  "squirrels_habitat_comb.png"))
+
+
+m2<-tm_shape(occupancy) +
+  tm_raster(palette = "viridis", 
+            title = "suitability")+
+   tm_layout(main.title = "Occupancy (M3) prediction squirrels", 
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("E", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+
+m2
+
+tmap_save(m2,here("plots",
+                  "squirrels_habitat_occupancy.png"))
+
+m3<-tm_shape(maxent) +
+  tm_raster(palette = "viridis", 
+            title = "suitability")+
+   tm_layout(main.title = "MaxEnt (M1) prediction squirrels", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("AUC (training) = 0.777
+AUC (test) = 0.821", position=c(0.7,0.65),size=1.2)+
+  tm_credits("A", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+
+m3
+
+tmap_save(m3,here("plots",
+                  "squirrels_habitat_maxent1.png"))
+
+m4<-tm_shape(maxent2) +
+  tm_raster(palette = "viridis", 
+            title = "suitability")+
+   tm_layout(main.title = "MaxEnt (M2) prediction squirrels", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("AUC (training) = 0.717
+AUC (test) = 0.798", position=c(0.7,0.65),size=1.2)+
+  tm_credits("C", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+
+m4
+
+tmap_save(m4,here("plots",
+                  "squirrels_habitat_maxent2.png"))
+
+m5<-tm_shape(comb_aim) +
+  tm_raster(palette = "viridis", 
+            title = "suitability")+
+   tm_layout(main.title = "AIM (M5) prediction squirrels", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+
+m5
+
+tmap_save(m5,here("plots",
+                  "squirrels_habitat_aim.png"))
+```
+
+
+
+
+#Which areas are over-/underpredicted? Comb_ppm is my reference model to test all other models with
+```{r}
+validation_maxent<-maxent-comb_ppm
+validation_maxent2<-maxent2-comb_ppm
+validation_occupancy<-occupancy-comb_ppm
+
+tmap_mode("plot")
+p1<-tm_shape(validation_maxent)+
+  tm_raster(palette = "RdBu", 
+            title = "Habitat suitability  
+compared to M4",
+            alpha=1, style = "cont", midpoint = NA,
+            breaks = c(-1,0,1),
+            labels = c("underprediction","","overprediction"))+
+   tm_layout(main.title = "Accuracy MaxEnt (M1) compared to IPPPM (M4)", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 1.2, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("B", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+
+p1
+
+
+
+tmap_save(p1,here("plots",
+                  "performace_maxent1.png"))
+
+tmap_mode("plot")
+p2<-tm_shape(validation_maxent2)+
+  tm_raster(palette = "RdBu", 
+            title = "Habitat suitability  
+compared to M4",
+            alpha=1, style = "cont", midpoint = NA,
+            breaks = c(-1,0,1),
+            labels = c("underprediction","","overprediction"))+
+   tm_layout(main.title = "Accuracy MaxEnt (M2) compared to IPPPM (M4)", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 1.2, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("D", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+p2
+
+tmap_save(p2,here("plots",
+                  "performace_maxent2.png"))
+
+p3<-tm_shape(validation_occupancy)+
+  tm_raster(palette = "RdBu", 
+            title = "Habitat suitability  
+compared to M4",
+            alpha=1, style = "cont", midpoint = NA,
+            breaks = c(-1,0,1),
+            labels = c("underprediction","","overprediction"))+
+   tm_layout(main.title = "Accuracy Occupancy (M3) compared to IPPPM (M4)", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 1.2, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("F", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))
+p3
+
+tmap_save(p3,here("plots",
+                  "performace_occupancy.png"))
+```
+
+
+
+```{r plot}
+maxent<-sampleRegular(maxent,1000000)
+maxent<-as.data.frame(maxent)
+maxent$model="MaxEnt"
+names(maxent)<-c("suitability","model")
+
+maxent2<-sampleRegular(maxent2,1000000)
+maxent2<-as.data.frame(maxent2)
+maxent2$model="MaxEnt+CT"
+names(maxent2)<-c("suitability","model")
+
+occupancy<-sampleRegular(occupancy,1000000)
+occupancy<-as.data.frame(occupancy)
+occupancy$model="Occupancy"
+names(occupancy)<-c("suitability","model")
+
+comb_ppm<-sampleRegular(comb_ppm,1000000)
+comb_ppm<-as.data.frame(comb_ppm)
+comb_ppm$model="IPPPM"
+names(comb_ppm)<-c("suitability","model")
+
+compare<-rbind(comb_ppm, occupancy,maxent,maxent2)
+compare$model = factor(compare$model,c("IPPPM","Occupancy","MaxEnt","MaxEnt+CT"))
+
+g<-ggplot(data=compare, aes_string(x = "model",
+                            y="suitability",
+                            fill="model"))+
+  geom_violin()+
+  scale_fill_brewer(palette = "Paired") +
+ ylab("Predicted Suitability")+theme(text = element_text(size=30),panel.background = element_blank())+xlab("Model")+geom_boxplot(width=0.2,show.legend =F)
+
+g
+
+ggsave(here("plots","model_compare.png"), width = 12, height = 9.5)
+```
+
+```{r}
+names(models)<-c("IPPPM","Occupancy","Maxent","MaxEnt+CT")
+
+ct_observed<-readRDS(here("output","data-proc","Ct_observed.RDS"))%>%as_Spatial()
+
+
+mod_po<-as.data.frame(extract(models,po_sp))%>%melt()
+mod_ct<-as.data.frame(extract(models,ct_observed))%>%melt()
+loc_all<-readRDS(here("output","data-proc","obs_ct_confirmed_and_sightings_filter.RDS"))%>%as_Spatial()
+mod_all<-as.data.frame(extract(models,loc_all))%>%melt()
+
+
+g<-ggplot(data=mod_po,aes(x=variable,y=value,fill=variable))+
+  geom_violin()+
+  scale_fill_brewer(palette = "Paired") +
+ ylab("Suitability at confirmed squirrel location")+
+  theme(text = element_text(size=30))+xlab("Model")+geom_boxplot(width=0.2,show.legend =F)
+
+g
+
+```
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+## DO NOT REMOVE!
+## We store the settings of your computer and the current versions of the
+## packages used to allow for reproducibility
+Sys.time()
+#git2r::repository() ## uncomment if you are using GitHub
+sessionInfo()
+```
+
+</details>
+

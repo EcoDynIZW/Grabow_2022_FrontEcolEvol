@@ -1,0 +1,5 @@
+"0","squirrels<-rbind(squirrels,ct_observed)
+"
+"2","Error in rbind.data.frame(...) : 
+  numbers of columns of arguments do not match
+"

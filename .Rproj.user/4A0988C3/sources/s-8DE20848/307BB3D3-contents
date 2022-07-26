@@ -1,0 +1,248 @@
+---
+title: "Red squirrel Berlin: Circuitscape" ## name of your project
+author: "Your Name"                     ## your name(s)
+date: "`r Sys.Date()`"                  ## current date
+output:
+  word_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## You can ignore this chunk in most cases
+## If you want to modify chunk options, you can do it here for all chunks or
+## add the options in the repsective chunk header, e.g. `{r, message = FALSE}`
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE, message = TRUE,
+                      fig.width = 9, fig.height = 6, dpi = 500, 
+                      retina = 1)
+```
+
+# Setup
+
+```{r packages}
+package.list=c("here",
+               "raster",
+               "sf",
+               "magrittr",
+               "plyr",
+               "conflicted",
+               "rgdal",
+               "ggplot2",
+               "spatialEco",
+               "colorspace",
+               "RColorBrewer",
+               "tmaptools",
+               "tmap",
+               "dismo")
+
+for (package in package.list) {
+  if (!require(package, character.only=T, quietly=T)) {
+    install.packages(package)
+    library(package, character.only=T)
+  }
+}
+
+conflict_prefer("here", "here")
+conflict_prefer("extract", "raster")
+```
+
+
+# Read Data. 
+
+This chunk creates the resistance layer used in the Circuitscape algortihm. The predictions of the most suitable model were turned (inverted) into resistance values. In addition all trees and forest parts of Berlin are concluded to have no resistance for an aboreal species and can be used to travel with "lower costs". On the other side, large streets and water ways are hypothesized to have very high costs and can't be used to travel in space.
+
+```{r data}
+Berlin_shape<-readOGR(here("data-raw",
+                           "geo-raw",
+                           "Berlin-shapefiles",
+                          "gis_osm_places_a_free_1.shp")) %>% spTransform(CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000
++ellps=GRS80 +units=m +no_defs "))
+
+template_ras_10<-raster(here("data-raw",
+            "geo-raw",
+            "Data_Marius",
+            "template_raster_berlin_10m_2020_3035",
+            "template_raster_berlin_10m_2020_3035.tif"))
+
+temp500<-aggregate(template_ras_10,50)
+
+forest<-(raster(here("output","geo-proc","forest_binary_3035.tif"))%>%resample(y=temp500,"ngb")*100)^2
+
+trees<-read.csv(here("data-raw",
+                     "geo-raw",
+                     "Data_Marius",
+                     "trees.csv")) %>%
+  st_as_sf(coords =c("X","Y"),crs=3035)%>% subset(select=c(7,9,13,20))
+
+trees$num<-100
+ras<-rasterize(trees,template_ras_10,field=trees$num,background=0)^2%>%resample(y=temp500)
+
+tree_ras<-mask(x=ras,mask = Berlin_shape,updatevalue = NA)
+all_trees<-mosaic(forest,tree_ras,fun=max)
+#all_trees_100<-resample(all_trees,habitat)
+
+habitat<-(raster(here("output","geo-proc","habitat_comd_ad_ppm.tif"))*100)^2
+habitat500<-resample(habitat,temp500)
+
+resistance<-mosaic(all_trees,habitat500,fun=max)%>%raster.invert()
+
+resistance_copy<-resistance
+
+# #Include streets with >10,000 car crossings / 24hours
+# #traffic_volume<-raster(here("data-raw",
+#             "geo-raw",
+#             "Data_Marius",
+#             "traffic_volume_berlin_raster_10m_2014_3035",
+#             "traffic_volume_berlin_raster_10m_2014_3035.tif"))
+
+traffic_volume<-raster(here("output",
+            "geo-proc",
+            "focal_max_traffic_volume.tif"))>25000
+
+traffic_volume_500<-(resample(traffic_volume,temp500,method="ngb")*100)^2
+
+#merge both rasters based on maximum resistance value
+resistance_traffic<-mosaic(traffic_volume_500,resistance,fun=max)
+
+#Define complete barriers
+resistance_traffic[resistance_traffic>=9500]<-NA
+#Remove Zero
+resistance_traffic[resistance_traffic<=1]<-0.001
+
+#save ascii
+writeRaster(resistance_traffic,here("output",
+                                  "geo-proc",
+                                  "resistance.asc"),
+            overwrite=TRUE)
+
+```
+
+# Threshold habitat suitbaility map
+
+```{r}
+habitat<-raster(here("output",
+                     "geo-proc",
+                     "habitat_comd_ad_ppm.tif"))
+
+resistance<-raster(here("output",
+                 "geo-proc",
+                 "resistance.asc"))
+values(resistance)<-1:ncell(resistance)
+
+all_observations<-st_coordinates(
+  readRDS(here("output",
+               "data-proc",
+               "obs_ct_confirmed_and_sightings_filter.RDS")))
+obs<-extract(habitat,all_observations)
+
+
+random_points<-randomPoints(habitat,n=100000)
+random_back<-extract(habitat,random_points)
+
+eval<-evaluate(p=obs,a=random_back)
+thresholds<-threshold(eval)
+
+thresh_map<-habitat>thresholds$kappa
+thresh_map<-resample(thresh_map,resistance,method="ngb")
+#create individual number for each raster cell
+thresh_map<-thresh_map*resistance
+plot(thresh_map)
+
+writeRaster(thresh_map,
+            here("output",
+                 "geo-proc",
+                 "habitat_threshold.asc"),
+            overwrite=T)
+```
+
+# Read Circuitscape output
+```{r}
+current_map_ct_threshold<-raster(here("output",
+                            "Circuitscape",
+               "cs_ct_out_resistances_threshold_cum_curmap.asc"))%>% mask(Berlin_shape,updatevalue=NA)
+
+crs(current_map_ct_threshold)<-CRS('+init=EPSG:3035')
+
+bermap<-bb(current_map_ct_threshold)%>%read_osm(type="osm",ext=1)
+
+current_map_ct_threshold[current_map_ct_threshold < 3000] <- NA
+
+Ber_dissolved<-aggregate(Berlin_shape)
+
+
+tmap_mode("plot")
+p1<-tm_shape(bermap)+tm_rgb()+
+  tm_shape(current_map_ct_threshold) +
+  tm_raster(palette = c("orange","red"),
+            style="cont", 
+            title = "cumulative current   ",
+            alpha=1,
+            colorNA = NULL)+
+  tm_shape(Ber_dissolved)+
+  tm_polygons(alpha = 0,
+              lwd=2)+
+   tm_layout(main.title = "Circuitscape - cumulative current networks", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("A", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))+
+  tm_add_legend(type="line",labels = "study area border", lwd = 3)
+
+p1
+
+
+tmap_save(p1,here("plots",
+                  "cumulative_current.png"))
+
+tmap_mode("plot")
+p2<-tm_shape(bermap)+tm_rgb()+
+  tm_shape(current_map_ct_threshold>8000) +
+  tm_raster(palette = c(NA,"red"),
+            style="cont", 
+            title = "critical connectivity nodes   ",
+            alpha=1,
+            legend.show = F)+
+  tm_shape(Ber_dissolved)+
+  tm_polygons(alpha = 0,
+              lwd=2)+
+   tm_layout(main.title = "Circuitscape - critical nodes for connectivity ", 
+            compass.type = "arrow",
+            legend.title.size = 1.5,
+            legend.text.size = 0.8, 
+          legend.bg.color = "white",
+          legend.position = c("right", "top"),
+            inner.margins = c(0.05,0.05,0.05,0.1),
+          legend.frame = TRUE)+
+  tm_credits("B", position=c("left", "top"),size=3)+
+  tm_compass(size=3, show.labels = 0)+
+  tm_scale_bar(text.size = 1.5,position = c(0,-0.01))+
+  tm_add_legend(type="fill", labels="critical connectivity nodes", col = "red")+
+  tm_add_legend(type="line",labels = "study area border", lwd = 3)
+
+p2
+tmap_save(p2,here("plots",
+                  "critical_nodes.png"))
+```
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+## DO NOT REMOVE!
+## We store the settings of your computer and the current versions of the
+## packages used to allow for reproducibility
+Sys.time()
+#git2r::repository() ## uncomment if you are using GitHub
+sessionInfo()
+```
+
+</details>
+

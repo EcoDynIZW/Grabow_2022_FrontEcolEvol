@@ -1,0 +1,13 @@
+"0","# explore sampling effort
+sampling_effort <- rasterize(squirrels,
+                             buffer500.r1,
+                             fun='count',
+                             file = ""species"",
+                             background = 0.1, 
+                             overwrite =TRUE)
+"
+"2","Warning in showSRID(uprojargs, format = ""PROJ"", multiline = ""NO"", prefer_proj = prefer_proj) :"
+"2","
+ "
+"2"," Discarded datum Unknown based on GRS80 ellipsoid in Proj4 definition
+"

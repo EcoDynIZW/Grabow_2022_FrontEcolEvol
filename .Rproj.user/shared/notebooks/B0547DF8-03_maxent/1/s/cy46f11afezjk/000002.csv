@@ -1,0 +1,50 @@
+"0","package.list=c(""unmarked"","
+"0","               ""here"","
+"0","               ""raster"","
+"0","               ""sf"","
+"0","               ""magrittr"","
+"0","               ""plyr"","
+"0","               ""conflicted"","
+"0","               ""rgdal"","
+"0","               ""dismo"","
+"0","               ""rasterVis"","
+"0","               ""ggplot2"","
+"0","               ""fasterize"","
+"0","               ""tmap"","
+"0","               ""nngeo"","
+"0","               ""d6berlin"")"
+"0","for (package in package.list) {"
+"0","  if (!require(package, character.only=T, quietly=T)) {"
+"0","    install.packages(package)"
+"0","}"
+"0",""
+"0","conflict_prefer(""here"", ""here"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34mhere::here[39m over any other package
+"
+"0","conflict_prefer(""levelplot"", ""rasterVis"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34mrasterVis::levelplot[39m over any other package
+"
+"0","conflict_prefer(""coordinates"", ""sp"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34msp::coordinates[39m over any other package
+"
+"0","conflict_prefer(""extract"", ""raster"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34mraster::extract[39m over any other package
+"
+"0","conflict_prefer(""threshold"", ""dismo"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34mdismo::threshold[39m over any other package
+"
+"0","conflict_prefer(""union"", ""rgeos"")"
+"2","[conflicted] Removing existing preference
+"
+"2","[conflicted] Will prefer [34mrgeos::union[39m over any other package
+"

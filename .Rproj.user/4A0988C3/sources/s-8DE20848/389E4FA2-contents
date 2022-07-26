@@ -1,0 +1,306 @@
+---
+title: "Red squirrel Berlin - occupancy models"
+author:
+    - name: "Marius Grabow" 
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://izw-berlin.de/en/
+      orcid_id: 0000-0003-0702-9642
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate      
+        code_folding: false  
+        toc: true            
+        toc_depth: 2         
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	fig.height = 6,
+	fig.width = 9,
+	message = FALSE,
+	warning = TRUE,
+	dpi = 500,
+	retina = 1
+)
+```
+
+
+# Setup
+
+```{r packages, message=FALSE, warning=FALSE}
+package.list=c("unmarked",
+               "raster",
+               "sp",
+               "rgdal",
+               "here",
+               "tidyverse",
+               "sf",
+               "conflicted",
+               "grainscape",
+               "tmap",
+               "dismo",
+               "AICcmodavg")
+
+for (package in package.list) {
+  if (!require(package, character.only=T, quietly=T)) {
+    install.packages(package)
+    library(package, character.only=T)
+  }
+}
+
+
+conflict_prefer("here", "here")
+conflict_prefer("levelplot", "rasterVis")
+conflict_prefer("coordinates", "sp")
+conflict_prefer("extract", "raster")
+conflict_prefer("threshold", "dismo")
+```
+
+# Data
+```{r, message=FALSE, warning=FALSE}
+
+Berlin_shape<-readOGR(here("data-raw",
+                           "geo-raw",
+                           "Berlin_shape.shp")) %>% 
+                          spTransform(CRS(
+                          "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000
++ellps=GRS80 +units=m +no_defs "))
+
+cov_stack<-readRDS(here("output","data-proc","cov10.RDS"))%>%
+  stack()
+cov_stack<-cov_stack[[1:12]]
+
+template_ras_10<-raster(here("data-raw",
+            "geo-raw",
+            "template_raster_berlin_10m_2020_3035.tif"))
+
+ct<-read.csv(here("data-raw","camera-trap","centroids_cameras_grid_25833.csv"))%>%
+  st_as_sf(coords=c("xcoord_centroid_25833","ycoord_centroid_25833"),crs=25833)%>%
+  st_transform(3035)
+
+```
+
+
+# Model for all seasons
+```{r}
+cov <- raster::extract(cov_stack, ct)%>%
+  data.frame()
+
+occu_all<-unmarkedFrameOccu(ct[,21:24])
+siteCovs(occu_all)<-scale(cov)
+st_geometry(ct) <- NULL
+obsCovs(occu_all)<-ct[,c(3,4,5,17)]
+
+model_all<-occu(~garden_type+
+                  garden_size+
+                  Local_tree_cover+
+                  season~
+                supply_green+
+                 distance_green+
+                 distance_streets+
+                 pop_density+
+                 imperviousness+
+                 multiple_burdens+
+                 distance_border+
+                 dist_old_tree+
+                 temp_04+
+                 focal_green_capacity+
+                 focal_traffic_volume+
+                 focal_tree_coniferous,
+                 occu_all)
+
+
+m0<-occu(~1~1,occu_all)
+m1_1<-occu(~1~distance_green,occu_all)
+m1_2<-occu(~1~dist_old_tree,occu_all)
+m1_3<-occu(~1~imperviousness,occu_all)
+m1_4<-occu(~1~focal_green_capacity,occu_all)
+m1_5<-occu(~1~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_all)
+m1_6<-occu(~garden_type~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_all)
+m1_7<-occu(~garden_size~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_all)
+m1_8<-occu(~season~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_all)
+m1_9<-occu(~Local_tree_cover~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_all)
+m1_10<-occu(~season~distance_green+dist_old_tree+imperviousness+focal_green_capacity+pop_density, occu_all)
+m1_11<-occu(~season~distance_streets, occu_all)
+m1_12<-occu(~season~pop_density, occu_all)
+m1_13<-occu(~season~multiple_burdens, occu_all)
+m1_14<-occu(~season~distance_border, occu_all)
+m1_15<-occu(~season~temp_04, occu_all)
+m1_16<-occu(~season~focal_traffic_volume, occu_all)
+m1_17<-occu(~season~distance_streets+focal_traffic_volume+imperviousness, occu_all)
+m1_18<-model_all
+
+
+m1_fit<-fitList(
+  'Null Model p(.)psi(.)'= m0,
+  'p(.)psi(distance_green)'=m1_1,
+  'p(.)psi(dist_old_tree)'=m1_2,
+  'p(.)psi(imperviousness)'=m1_3,
+  'p(.)psi(focal_green_capacity)'=m1_4,
+  'p(.)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m1_5,
+  'p(garden_type)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m1_6,
+  'p(garden_size)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m1_7,
+  'p(season)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m1_8,
+  'p(local_tree_cover)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m1_9,
+  'p(season)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity+pop_density)'=m1_10,
+  'p(season)psi(distance_streets)'=m1_11,
+  'p(season)psi(pop_density)'=m1_12,
+  'p(season)psi(multiple_burdens)'=m1_13,
+  'p(season)psi(distance_border)'=m1_14,
+  'p(season)psi(temp_04)'=m1_15,
+  'p(season)psi(focal_traffic_volume)'=m1_16,
+  'p(season)psi(distance_streets+focal_traffic_volume+imperviousness)'=m1_17,
+  'Global model'=m1_18
+  )
+
+ms1<-modSel(m1_fit)%>%as("data.frame")
+
+```
+
+# model evaluation
+```{r}
+
+occ_gof <- mb.gof.test(m1_10, nsim = 1000, plot.hist = FALSE)
+occ_gof
+pchisq(98.5931, df=16, lower.tail=FALSE)
+
+```
+
+# Prediction 
+```{r}
+sc<-scale(cov)
+attr(sc,"scaled:center")
+attr(sc,"scaled:scale")
+
+distance_green.s<-(cov_stack[[2]]-1.999568e+02)/159.3031447
+dist_old_tree.s<-(cov_stack[[8]]-3.011822e+02)/553.1150796
+imperviousness.s<-(cov_stack[[5]]-4.835874e+01)/27.1375930
+focal_green_capacity.s<-(cov_stack[[10]]-2.364750e+00)/1.9038062
+pop_density.s<-(cov_stack[[4]]-5.277738e-01)/0.7071153
+
+
+pred.stack<-stack(distance_green.s,
+                  dist_old_tree.s,
+                  imperviousness.s,
+                  focal_green_capacity.s,
+                  pop_density.s)
+
+names(pred.stack)<-c("distance_green",
+                   "dist_old_tree",
+                   "imperviousness",
+                   "focal_green_capacity",
+                   "pop_density")
+
+
+
+beta <- coef(m1_10, type="state")
+logit.psi <- beta[1] + beta[2]*distance_green.s + beta[3]*dist_old_tree.s + beta[4]*imperviousness.s + beta[5]*focal_green_capacity.s+beta[6]*pop_density.s
+
+psi <- exp(logit.psi) / (1 + exp(logit.psi))
+
+(det <- coef(m1_10, type="det"))
+naive_occupancy__probability<-exp(beta[1])/(1+exp(beta[1]))
+
+naive_detection_probability<-exp(-0.2508653)/(1+exp(-0.2508653))
+det_prob_spring<-exp(0.5445323)/(1+exp(0.5445323))
+
+
+
+writeRaster(psi,here("output","geo-proc","psi.tif"),overwrite = TRUE)
+
+
+```
+#inverse-logit function
+```{r function for probability calculation}
+antilogit<-function(x){
+exp(x)/(1+exp(x)) 
+}
+
+m1_10@estimates@estimates[["state"]]
+sapply(c(-0.546,0.248,0.077,-0.156,0.252,0.202),antilogit)
+
+```
+
+# Model in 500m resolution
+```{r same model 500m resolution}
+
+stack500<-readRDS(here("output","data-proc","cov500.RDS"))
+cov500 <- raster::extract(stack500, ct)  %>% data.frame()
+
+occu_500<-unmarkedFrameOccu(observations[,2:5])
+siteCovs(occu_500)<-scale(cov500)
+st_geometry(ct) <- NULL
+obsCovs(occu_500)<-ct[,c(3,4,5,17)]
+
+model_500<-occu(~garden_type+
+                  garden_size+
+                  Local_tree_cover+
+                  season~
+                supply_green+
+                 distance_green+
+                 distance_streets+
+                 pop_density+
+                 imperviousness+
+                 multiple_burdens+
+                 distance_border+
+                 dist_old_tree+
+                 temp_04+
+                 focal_green_capacity+
+                 focal_traffic_volume+
+                 focal_tree_coniferous,
+                 occu_500)
+
+
+m0<-occu(~1~1,occu_500)
+m2_1<-occu(~1~distance_green,occu_500)
+m2_2<-occu(~1~dist_old_tree,occu_500)
+m2_3<-occu(~1~imperviousness,occu_500)
+m2_4<-occu(~1~focal_green_capacity,occu_500)
+m2_5<-occu(~1~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_500)
+m2_6<-occu(~garden_type~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_500)
+m2_7<-occu(~garden_size~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_500)
+m2_8<-occu(~season~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_500)
+m2_9<-occu(~Local_tree_cover~distance_green+dist_old_tree+imperviousness+focal_green_capacity, occu_500)
+m2_10<-occu(~season~distance_green+dist_old_tree+imperviousness+focal_green_capacity+pop_density, occu_500)
+m2_11<-occu(~season~distance_streets, occu_500)
+m2_12<-occu(~season~pop_density, occu_500)
+m2_13<-occu(~season~multiple_burdens, occu_500)
+m2_14<-occu(~season~distance_border, occu_500)
+m2_15<-occu(~season~temp_04, occu_500)
+m2_16<-occu(~season~focal_traffic_volume, occu_500)
+m2_17<-occu(~season~distance_streets+focal_traffic_volume+imperviousness, occu_500)
+m2_18<-model_500
+
+
+m2_fit<-fitList(
+  'Null Model p(.)psi(.)'= m0,
+  'p(.)psi(distance_green)'=m2_1,
+  'p(.)psi(dist_old_tree)'=m2_2,
+  'p(.)psi(imperviousness)'=m2_3,
+  'p(.)psi(focal_green_capacity)'=m2_4,
+  'p(.)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m2_5,
+  'p(garden_type)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m2_6,
+  'p(garden_size)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m2_7,
+  'p(season)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m2_8,
+  'p(local_tree_cover)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity)'=m2_9,
+  'p(season)psi(distance_green+dist_old_tree+imperviousness+focal_green_capacity+pop_density)'=m2_10,
+  'p(season)psi(distance_streets)'=m2_11,
+  'p(season)psi(pop_density)'=m2_12,
+  'p(season)psi(multiple_burdens)'=m2_13,
+  'p(season)psi(distance_border)'=m2_14,
+  'p(season)psi(temp_04)'=m2_15,
+  'p(season)psi(focal_traffic_volume)'=m2_16,
+  'p(season)psi(distance_streets+focal_traffic_volume+imperviousness)'=m2_17,
+  'Global model'=m2_18
+  )
+
+ms2<-modSel(m2_fit)%>%as("data.frame")
+
+
+occ_gof <- mb.gof.test(m2_10, nsim = 1000, plot.hist = FALSE)
+occ_gof
+pchisq(98.7577, df=16, lower.tail=FALSE)
+```
+
