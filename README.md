@@ -1,7 +1,7 @@
 # Grabow et al. 2022 *Frontiers in Ecology and Evolution*
 ## Data-integration of opportunistic species observations into hierarchical modelling frameworks improves spatial predictions for urban red squirrels 
 
-> **M. Grabow**, **J. Louvrier**, **A. Planillo**, **S. Kiefer**, **S. Drenske**. **K. Börner**, **M. Stillfried**, **R. Hagen**, **S. Kimmig**, **T. Straka** & **S. Kramer-Schadt** (2022). Data-integration of opportunistic species observations into hierarchical modelling frameworks improves spatial predictions for urban red squirrels. *Frontiers in Ecology and Evolution*. doi: [https://dx.doi.org/10.3389/fevo.2022.881247]
+> **M. Grabow**, **J. Louvrier**, **A. Planillo**, **S. Kiefer**, **S. Drenske**. **K. Börner**, **M. Stillfried**, **R. Hagen**, **S. Kimmig**, **T. Straka** & **S. Kramer-Schadt** (2022). Data-integration of opportunistic species observations into hierarchical modelling frameworks improves spatial predictions for urban red squirrels. *Frontiers in Ecology and Evolution*. DOI: [10.3389/fevo.2022.881247](https://dx.doi.org/10.3389/fevo.2022.881247)
 ---
 ## Abstract
 
